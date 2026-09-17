@@ -1,0 +1,19 @@
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8000:8000"
+
+  worker:
+    build: .
+    restart: unless-stopped
+    entrypoint: ["./scripts/worker.sh"]
+    env_file: .env
+
+  beat:
+    build: .
+    restart: unless-stopped
+    entrypoint: ["./scripts/beat.sh"]
+    env_file: .env

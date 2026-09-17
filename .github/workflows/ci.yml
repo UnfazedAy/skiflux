@@ -1,0 +1,122 @@
+name: Skiflux
+
+on:
+  pull_request:
+    branches:
+      - dev
+  push:
+    branches:
+      - main
+
+jobs:
+
+  ruff-lint:
+    name: Ruff
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    defaults:
+      run:
+        working-directory: skiflux_project
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install and configure Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 2.3.4
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Cache Poetry virtualenv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: skiflux_project/.venv
+          key: venv-${{ runner.os }}-${{ hashFiles('skiflux_project/poetry.lock') }}
+
+      - name: Verify lock file is up to date
+        run: poetry check --lock
+
+      - name: Install Dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction --no-root
+
+      - name: Cache Ruff
+        uses: actions/cache@v4
+        with:
+          path: skiflux_project/.ruff_cache
+          key: ${{ runner.os }}-ruff-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-ruff-
+
+      - name: Check Formatting
+        run: poetry run ruff format --check .
+
+      - name: Check Linting
+        run: poetry run ruff check .
+
+  django-tests:
+    name: Pytest
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    env:
+      DJANGO_SETTINGS_MODULE: skiflux_project.settings
+      SECRET_KEY: "dummy-key-for-testing"
+      DATABASE_URL: "sqlite:///:memory:"
+      DEFAULT_FROM_EMAIL: "test@example.com"
+      BREVO_API_KEY: "dummy-brevo-key"
+      CLOUDINARY_CLOUD_NAME: "dummy-cloud"
+      CLOUDINARY_API_KEY: "dummy-key"
+      CLOUDINARY_API_SECRET: "dummy-secret"
+      REDIS_URL: "redis://localhost:6379/0"
+      PAYLOAD_ENCRYPTION_KEY: "T1g2aThkX3A0Z01mZ0h1Z2VfM1o4bV9rTGpXN1E5Rno="
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: skiflux_project
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install and configure Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 2.3.4
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Cache Poetry virtualenv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: skiflux_project/.venv
+          key: venv-${{ runner.os }}-${{ hashFiles('skiflux_project/poetry.lock') }}
+
+      - name: Verify lock file is up to date
+        run: poetry check --lock
+
+      - name: Install Dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction --no-root
+
+      - name: Run Pytest (SQLite)
+        run: poetry run pytest

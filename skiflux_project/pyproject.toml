@@ -1,0 +1,77 @@
+[project]
+name = "skiflux"
+version = "1.0.0"
+description = "SkiFlux Backend API"
+authors = [
+    { name = "Mandel", email = "nelsonokiki@gmail.com" },
+    { name = "Ayomide", email = "ayomidesoniyi@gmail.com" },
+    { name = "Areegbe David", email = "areegbedavid@gmail.com" },
+]
+# Added this line to clear the warnings!
+dynamic = ["dependencies", "requires-python"]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+django = "6.0.5"
+psycopg2-binary = "2.9.12"
+djangorestframework = "3.17.1"
+django-phonenumber-field = {extras = ["phonenumbers"], version = "8.4.0"}
+pyjwt = "2.13.0"
+python-decouple = "3.8"
+celery = "5.4.0"
+redis = "7.4.0"
+drf-spectacular = "0.29.0"
+gunicorn = "25.3.0"
+whitenoise = "6.12.0"
+dj-database-url = "3.1.2"
+google-auth = "2.50.0"
+cryptography = "49.0.0"
+requests = "2.33.1"
+authlib = "1.7.1"
+httpx = "0.28.1"
+resend = "2.29.0"
+cloudinary = "1.44.2"
+Pillow = "12.2.0"
+django-cors-headers = "4.9.0"
+sentry-sdk = {extras = ["celery", "django"], version = "2.60.0"}
+newrelic = "13.0.0"
+fuzzywuzzy = "0.18.0"
+python-levenshtein = "0.27.3"
+gevent = "26.5.0"
+python-dateutil = "2.9.0.post0"
+stripe = "11.5.0"
+boto3 = "1.43.19"
+firebase-admin = "7.4.0"
+django-ipware = "7.0.1"
+geoip2 = "5.2.0"
+psycogreen = "1.0.2"
+google-genai = "2.8.0"
+adyen = "15.0.2"
+msgpack = "1.2.1"
+
+[tool.ruff]
+line-length = 88
+
+[tool.black]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/migrations/*.py" = ["E501"]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "ruff (==0.15.13)",
+    "pytest (==9.0.3)",
+    "pytest-django (==4.12.0)",
+    "bandit (==1.9.4)"
+]
+
+[tool.bandit]
+exclude_dirs = ["tests"]

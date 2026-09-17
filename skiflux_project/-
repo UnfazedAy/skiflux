@@ -1,0 +1,1806 @@
+openapi: 3.0.3
+info:
+  title: SkiFlux API
+  version: 1.0.0
+  description: Backend API documentation and testing for SkiFlux
+paths:
+  /api/v1/admin/auth/login:
+    post:
+      operationId: v1_admin_auth_login_create
+      description: Authenticate an admin user.Returns access and refresh tokens.
+      summary: Admin Login
+      tags:
+      - Admin › Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminLoginRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdminLoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdminLoginRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: Login successful.
+  /api/v1/admin/auth/logout:
+    post:
+      operationId: v1_admin_auth_logout_create
+      description: Blacklist the admin refresh token, ending the session.
+      summary: Admin Logout
+      tags:
+      - Admin › Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminLogoutRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdminLogoutRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdminLogoutRequest'
+        required: true
+      security:
+      - adminBearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Logged out successfully.
+  /api/v1/admin/auth/token/refresh:
+    post:
+      operationId: v1_admin_auth_token_refresh_create
+      description: Exchange a valid admin refresh token for a new access token.
+      summary: Admin Token Refresh
+      tags:
+      - Admin › Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminRefreshTokenRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdminRefreshTokenRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdminRefreshTokenRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: Returns new access_token.
+  /api/v1/admin/creators/:
+    get:
+      operationId: v1_admin_creators_list
+      description: Admin endpoint to retrieve a paginatedlist of all creators on the
+        platform.
+      summary: List all Creators
+      tags:
+      - Admin › Creator Management
+      security:
+      - adminBearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CreatorList'
+          description: ''
+  /api/v1/admin/creators/{id}/override/:
+    patch:
+      operationId: v1_admin_creators_override_partial_update
+      description: Admin endpoint to forcefully perform actions on a creator's episode
+        (e.g., unpublish).
+      summary: Override Creator Episode
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Admin › Creator Management
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedOverrideEpisodeRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedOverrideEpisodeRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedOverrideEpisodeRequestRequest'
+      security:
+      - adminBearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/admin/creators/{id}/oversight/:
+    get:
+      operationId: v1_admin_creators_oversight_retrieve
+      description: Admin endpoint to fetch high-leveloversight data (like episode
+        count) for a specific creator.
+      summary: Get Creator Oversight
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Admin › Creator Management
+      security:
+      - adminBearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatorOversightResponse'
+          description: ''
+  /api/v1/admin/permissions:
+    get:
+      operationId: v1_admin_permissions_retrieve
+      description: Returns every known permission codename and its label. Use this
+        to build the role-creation UI.
+      summary: List Available Permissions
+      tags:
+      - Admin › Roles
+      security:
+      - adminBearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: List of permission objects.
+  /api/v1/admin/roles:
+    get:
+      operationId: admin_roles_list
+      description: Returns all custom roles defined in the admin portal.
+      summary: List Roles
+      tags:
+      - Admin › Roles
+      security:
+      - adminBearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: List of roles.
+  /api/v1/admin/roles/{role_id}:
+    get:
+      operationId: admin_roles_retrieve
+      description: Retrieve a single role by ID.
+      summary: Get Role
+      parameters:
+      - in: path
+        name: role_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Admin › Roles
+      security:
+      - adminBearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Role details.
+  /api/v1/admin/roles/{role_id}/delete:
+    delete:
+      operationId: v1_admin_roles_delete_destroy
+      description: Super admin deletes a role. Fails if any admin user is currently
+        assigned to it.
+      summary: Delete Role
+      parameters:
+      - in: path
+        name: role_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Admin › Roles
+      security:
+      - adminBearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Role deleted.
+  /api/v1/admin/roles/{role_id}/update:
+    patch:
+      operationId: v1_admin_roles_update_partial_update
+      description: Super admin updates a role's name, description, or permissions.
+      summary: Update Role
+      parameters:
+      - in: path
+        name: role_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Admin › Roles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateRoleRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateRoleRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateRoleRequest'
+      security:
+      - adminBearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Role updated.
+  /api/v1/admin/roles/create:
+    post:
+      operationId: v1_admin_roles_create_create
+      description: Super admin creates a new custom rolewith a set of permissions.
+      summary: Create Role
+      tags:
+      - Admin › Roles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoleRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreateRoleRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateRoleRequest'
+        required: true
+      security:
+      - adminBearerAuth: []
+      - bearerAuth: []
+      responses:
+        '201':
+          description: Role created.
+  /api/v1/admin/users:
+    get:
+      operationId: admin_users_list
+      description: Returns all admin portal users.
+      summary: List Admin Users
+      tags:
+      - Admin › Users
+      security:
+      - adminBearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: List of admin users.
+  /api/v1/admin/users/{admin_id}:
+    get:
+      operationId: admin_users_retrieve
+      description: Retrieve an admin user by ID.
+      summary: Get Admin User
+      parameters:
+      - in: path
+        name: admin_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Admin › Users
+      security:
+      - adminBearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Admin user details.
+  /api/v1/admin/users/{admin_id}/deactivate:
+    delete:
+      operationId: v1_admin_users_deactivate_destroy
+      description: Super admin deactivates an admin portal user (soft delete).
+      summary: Deactivate Admin User
+      parameters:
+      - in: path
+        name: admin_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Admin › Users
+      security:
+      - adminBearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Admin user deactivated.
+  /api/v1/admin/users/{admin_id}/update:
+    patch:
+      operationId: v1_admin_users_update_partial_update
+      description: Super admin updates an admin user's details or role assignment.
+      summary: Update Admin User
+      parameters:
+      - in: path
+        name: admin_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Admin › Users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateAdminUserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateAdminUserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateAdminUserRequest'
+      security:
+      - adminBearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Admin user updated.
+  /api/v1/admin/users/create:
+    post:
+      operationId: v1_admin_users_create_create
+      description: Super admin creates a new adminportal user and assigns a role.
+      summary: Create Admin User
+      tags:
+      - Admin › Users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAdminUserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreateAdminUserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateAdminUserRequest'
+        required: true
+      security:
+      - adminBearerAuth: []
+      - bearerAuth: []
+      responses:
+        '201':
+          description: Admin user created.
+  /api/v1/auth/forgot-password:
+    post:
+      operationId: v1_auth_forgot_password_create
+      description: send otp to user email
+      summary: Forgot Password
+      tags:
+      - User › Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequestRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: Sends a reset code to user email if the email exists.
+  /api/v1/auth/login:
+    post:
+      operationId: v1_auth_login_create
+      description: Login a registered user.
+      summary: Login
+      tags:
+      - User › Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: Returns access_token and refresh_token
+  /api/v1/auth/logout:
+    post:
+      operationId: v1_auth_logout_create
+      description: Logs the user out by blacklisting their refresh token.
+      summary: Logout
+      tags:
+      - User › Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Logged out successfully.
+  /api/v1/auth/resend-register-otp:
+    post:
+      operationId: v1_auth_resend_register_otp_create
+      description: Resends the OTP to the user's email.
+      summary: Resend Verification OTP
+      tags:
+      - User › Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResendOTPRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ResendOTPRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ResendOTPRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: A new verification code has been sent.
+  /api/v1/auth/reset-password:
+    post:
+      operationId: v1_auth_reset_password_create
+      description: verify otp and reset password
+      summary: Reset Password
+      tags:
+      - User › Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordConfirmRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordConfirmRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordConfirmRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: Password has been reset successfully.
+  /api/v1/auth/signup:
+    post:
+      operationId: v1_auth_signup_create
+      description: Registers a new user account**Note:** Passwords must be 8+ charactersand
+        include uppercase, numbers, and symbols..
+      summary: Register a new user
+      tags:
+      - User › Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      - {}
+      responses:
+        '201':
+          description: Account created successfully
+  /api/v1/auth/social/apple/init:
+    get:
+      operationId: v1_auth_social_apple_init_retrieve
+      description: Returns a redirect to Apple's OAuth consent page.
+      summary: Initiate Apple Login
+      tags:
+      - User › Social Auth
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      - {}
+      responses:
+        '302':
+          description: Redirects to Apple consent page.
+  /api/v1/auth/social/google/callback:
+    get:
+      operationId: v1_auth_social_google_callback_retrieve
+      description: Google redirects here after the user consents. This exchanges the
+        code, logs in/creates the user, and redirects to the frontend with tokens.
+      summary: Google OAuth Callback
+      tags:
+      - User › Social Auth
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      - {}
+      responses:
+        '302':
+          description: Redirects to frontend with tokens.
+  /api/v1/auth/social/google/init:
+    get:
+      operationId: v1_auth_social_google_init_retrieve
+      description: Returns a redirect to Google's OAuth consent page. The frontend
+        should open this URL in a browser or WebView.
+      summary: Initiate Google Login
+      tags:
+      - User › Social Auth
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      - {}
+      responses:
+        '302':
+          description: Redirects to Google consent page.
+  /api/v1/auth/social/mobile/apple:
+    post:
+      operationId: v1_auth_social_mobile_apple_create
+      description: Authenticate with an Apple Identity Token from Sign in with Apple.
+      summary: Apple Social Login For mobile
+      tags:
+      - User › Social Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppleSocialAuthRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AppleSocialAuthRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AppleSocialAuthRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: Returns access_token and refresh_token.
+  /api/v1/auth/social/mobile/google:
+    post:
+      operationId: v1_auth_social_mobile_google_create
+      description: Authenticate with a Google ID Token from Google Sign-In. Returns
+        access and refresh tokens.
+      summary: Google Social Login For mobile
+      tags:
+      - User › Social Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleSocialAuthRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GoogleSocialAuthRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GoogleSocialAuthRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: Returns access_token and refresh_token.
+  /api/v1/auth/token/refresh:
+    post:
+      operationId: v1_auth_token_refresh_create
+      description: Exchanges a valid refresh token for a new access token.
+      summary: Refresh Access Token
+      tags:
+      - User › Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: Returns access_token.
+  /api/v1/auth/verify-forgot-password-otp:
+    post:
+      operationId: v1_auth_verify_forgot_password_otp_create
+      description: Verifies the 6-digit OTP sent during forgot password.
+      summary: Verify email OTP
+      tags:
+      - User › Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyForgotPasswordCodeRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VerifyForgotPasswordCodeRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VerifyForgotPasswordCodeRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: Password OTP verified successfully.
+  /api/v1/auth/verify-register-email:
+    post:
+      operationId: v1_auth_verify_register_email_create
+      description: Verifies the user's email using the 6-digit OTP sent during signup.
+      summary: Verify Email
+      tags:
+      - User › Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: Email verified successfully. You can now login.
+  /api/v1/creator/create-episode:
+    post:
+      operationId: v1_creator_create_episode_create
+      summary: Upload Video Episode
+      tags:
+      - Admin › Studio Content
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EpisodeCreateRequest'
+        required: true
+      security:
+      - adminBearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/creator/create-season:
+    post:
+      operationId: v1_creator_create_season_create
+      summary: Create a Season
+      tags:
+      - Admin › Studio Content
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SeasonCreateRequest'
+        required: true
+      security:
+      - adminBearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/creator/list-episodes:
+    get:
+      operationId: v1_creator_list_episodes_retrieve
+      summary: List My Episodes
+      tags:
+      - Admin › Studio Content
+      security:
+      - adminBearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/creator/list-seasons:
+    get:
+      operationId: v1_creator_list_seasons_retrieve
+      summary: List My Seasons
+      tags:
+      - Admin › Studio Content
+      security:
+      - adminBearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/creator/register:
+    post:
+      operationId: v1_creator_register_create
+      summary: Register Creator Account
+      tags:
+      - Admin › Creator Profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatorRegistrationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreatorRegistrationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreatorRegistrationRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/creator/resend-otp:
+    post:
+      operationId: v1_creator_resend_otp_create
+      description: Resends the 6-digit OTP to the Creator's email address.
+      summary: Resend OTP to Creator Email
+      tags:
+      - Admin › Creator Profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatorResendOTPRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreatorResendOTPRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreatorResendOTPRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: OTP sent successfully.
+  /api/v1/creator/verify-email:
+    post:
+      operationId: v1_creator_verify_email_create
+      description: Verifies the Creator's email using the 6-digit OTP sent during
+        signup.
+      summary: Verify Creator Email
+      tags:
+      - Admin › Creator Profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: Creator Email verified successfully. You can now login.
+  /api/v1/episodes/{id}/comments:
+    get:
+      operationId: v1_episodes_comments_list
+      description: Retrieves all comments for a given episode.
+      summary: Get Episode Comments
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - User › Content Interactions
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EpisodeComment'
+          description: ''
+  /api/v1/episodes/comment:
+    post:
+      operationId: v1_episodes_comment_create
+      description: Adds a comment to a specific episode.
+      summary: Add Comment to Episode
+      tags:
+      - User › Content Interactions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EpisodeCommentCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EpisodeCommentCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EpisodeCommentCreateRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EpisodeComment'
+          description: ''
+  /api/v1/episodes/like:
+    post:
+      operationId: v1_episodes_like_create
+      description: Like or unlike an episode.
+      summary: Toggle Like Episode
+      tags:
+      - User › Content Interactions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EpisodeActionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EpisodeActionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EpisodeActionRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/episodes/purchase:
+    post:
+      operationId: v1_episodes_purchase_create
+      description: Purchases a paid episode for the authenticated user. Free episodes
+        do not require purchase.
+      summary: Purchase an Episode
+      tags:
+      - User › Content
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EpisodePurchaseRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EpisodePurchaseRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EpisodePurchaseRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/episodes/recommendations:
+    get:
+      operationId: v1_episodes_recommendations_list
+      description: Returns a paginated, personalised list of published episodes.
+      summary: Get Recommendations
+      tags:
+      - User › Content
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Episode'
+          description: ''
+  /api/v1/episodes/save:
+    post:
+      operationId: v1_episodes_save_create
+      description: Save or unsave an episode for later.
+      summary: Toggle Save Episode
+      tags:
+      - User › Content Interactions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EpisodeActionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EpisodeActionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EpisodeActionRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/episodes/task/submit:
+    post:
+      operationId: v1_episodes_task_submit_create
+      description: Submits a task attempt for review.
+      summary: Submit a Task
+      tags:
+      - User › Content
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskSubmissionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskSubmissionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskSubmissionRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/episodes/track-view:
+    post:
+      operationId: v1_episodes_track_view_create
+      description: Records a view event for an episode. Updates watch duration and
+        completion status. Requires access to the episode.
+      summary: Track Episode View
+      tags:
+      - User › Content
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrackViewRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TrackViewRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TrackViewRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/health/:
+    get:
+      operationId: v1_health_retrieve
+      description: Returns 200 if the service is running.
+      summary: Health Check
+      tags:
+      - Health
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: Service is awake.
+  /api/v1/profile/complete-onboarding/:
+    post:
+      operationId: v1_profile_complete_onboarding_create
+      description: Sets up the user's profile, goal, and skillworld.Marks the user
+        as onboarded.
+      summary: Complete Onboarding
+      tags:
+      - User › Profile
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CompleteOnboardingRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Onboarding complete
+components:
+  schemas:
+    AccessTypeEnum:
+      enum:
+      - free
+      - paid
+      type: string
+      description: |-
+        * `free` - Free
+        * `paid` - Paid
+    ActionEnum:
+      enum:
+      - unpublish
+      type: string
+      description: '* `unpublish` - unpublish'
+    AdminLoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - email
+      - password
+    AdminLogoutRequest:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+          minLength: 1
+      required:
+      - refresh_token
+    AdminRefreshTokenRequest:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+          minLength: 1
+      required:
+      - refresh_token
+    AppleSocialAuthRequest:
+      type: object
+      properties:
+        identity_token:
+          type: string
+          minLength: 1
+        first_name:
+          type: string
+          default: ''
+        last_name:
+          type: string
+          default: ''
+      required:
+      - identity_token
+    CompleteOnboardingRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+        skillworld:
+          $ref: '#/components/schemas/SkillworldEnum'
+        goal:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoalEnum'
+        avatar:
+          type: string
+          format: binary
+          writeOnly: true
+      required:
+      - goal
+      - skillworld
+      - username
+    CreateAdminUserRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        last_name:
+          type: string
+          default: ''
+          maxLength: 255
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 8
+        password_confirm:
+          type: string
+          writeOnly: true
+          minLength: 8
+        role_type:
+          $ref: '#/components/schemas/CreateAdminUserRoleTypeEnum'
+        role_id:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - email
+      - first_name
+      - password
+      - password_confirm
+      - role_type
+    CreateAdminUserRoleTypeEnum:
+      enum:
+      - admin
+      type: string
+      description: '* `admin` - admin'
+    CreateRoleRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          default: ''
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PermissionsEnum'
+          description: List of permission codenames to grant. Must be from the known
+            set.
+      required:
+      - name
+    CreatorList:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The unique ID of the creator.
+        username:
+          type: string
+          description: The username of the creator.
+      required:
+      - id
+      - username
+    CreatorOversightEpisode:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          type: string
+      required:
+      - id
+      - status
+      - title
+    CreatorOversightResponse:
+      type: object
+      properties:
+        creator_id:
+          type: string
+          format: uuid
+        episodes_count:
+          type: integer
+          description: Total number of episodes by this creator.
+        episodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreatorOversightEpisode'
+      required:
+      - creator_id
+      - episodes
+      - episodes_count
+    CreatorRegistrationRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 8
+        password_confirm:
+          type: string
+          writeOnly: true
+          minLength: 8
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        username:
+          type: string
+          minLength: 1
+          maxLength: 20
+      required:
+      - email
+      - first_name
+      - last_name
+      - password
+      - password_confirm
+      - username
+    CreatorResendOTPRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+      required:
+      - email
+    Episode:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        season_id:
+          type: string
+          format: uuid
+          readOnly: true
+        skillworld:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        access_type:
+          $ref: '#/components/schemas/AccessTypeEnum'
+        thumbnail_url:
+          type: string
+          nullable: true
+          readOnly: true
+        video_url:
+          type: string
+          nullable: true
+          readOnly: true
+        order:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          description: 1-10
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        view_count:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/EpisodeTask'
+          readOnly: true
+      required:
+      - description
+      - id
+      - season_id
+      - skillworld
+      - tasks
+      - thumbnail_url
+      - title
+      - video_url
+    EpisodeActionRequest:
+      type: object
+      properties:
+        episode_id:
+          type: string
+          format: uuid
+      required:
+      - episode_id
+    EpisodeComment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user_first_name:
+          type: string
+          readOnly: true
+        user_last_name:
+          type: string
+          readOnly: true
+        user_avatar:
+          type: string
+          format: uri
+          readOnly: true
+        text:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - text
+      - user_avatar
+      - user_first_name
+      - user_last_name
+    EpisodeCommentCreateRequest:
+      type: object
+      properties:
+        episode_id:
+          type: string
+          format: uuid
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+      required:
+      - episode_id
+      - text
+    EpisodeCreateRequest:
+      type: object
+      properties:
+        season_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          minLength: 1
+        order:
+          type: integer
+          maximum: 10
+          minimum: 1
+        access_type:
+          allOf:
+          - $ref: '#/components/schemas/AccessTypeEnum'
+          default: paid
+        video_file:
+          type: string
+          format: binary
+        thumbnail_file:
+          type: string
+          format: binary
+          nullable: true
+      required:
+      - description
+      - order
+      - season_id
+      - title
+      - video_file
+    EpisodePurchaseRequest:
+      type: object
+      properties:
+        episode_id:
+          type: string
+          format: uuid
+      required:
+      - episode_id
+    EpisodeTask:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          maxLength: 255
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        completion_criteria: {}
+      required:
+      - id
+      - kind
+      - title
+    ForgotPasswordRequestRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+      required:
+      - email
+    GoalEnum:
+      enum:
+      - build_portfolio
+      - learn_skill
+      - earn_income
+      - network
+      type: string
+      description: |-
+        * `build_portfolio` - Build a verified portfolio
+        * `learn_skill` - Learn a new technical skill
+        * `earn_income` - Earn income through tasks
+        * `network` - Network with creators
+    GoogleSocialAuthRequest:
+      type: object
+      properties:
+        id_token:
+          type: string
+          minLength: 1
+      required:
+      - id_token
+    KindEnum:
+      enum:
+      - execution_project
+      - gamified_exam
+      type: string
+      description: |-
+        * `execution_project` - Execution Project
+        * `gamified_exam` - Gamified Exam
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - email
+      - password
+    LogoutRequest:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+          minLength: 1
+      required:
+      - refresh_token
+    PatchedOverrideEpisodeRequestRequest:
+      type: object
+      properties:
+        episode_id:
+          type: string
+          format: uuid
+          description: The ID of the episode to override.
+        action:
+          allOf:
+          - $ref: '#/components/schemas/ActionEnum'
+          description: |-
+            The administrative action to apply to the episode.
+
+            * `unpublish` - unpublish
+    PatchedUpdateAdminUserRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        last_name:
+          type: string
+          maxLength: 255
+        role_id:
+          type: string
+          format: uuid
+          nullable: true
+        role_type:
+          $ref: '#/components/schemas/UpdateAdminUserRoleTypeEnum'
+        is_active:
+          type: boolean
+        password:
+          type: string
+          writeOnly: true
+          minLength: 8
+    PatchedUpdateRoleRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PermissionsEnum'
+          description: Full replacement list of permission codenames.
+    PermissionsEnum:
+      enum:
+      - users.view
+      - users.edit
+      - users.delete
+      - users.suspend
+      - roles.view
+      - roles.manage
+      - content.view
+      - content.manage
+      - economy.view
+      - economy.manage
+      - analytics.view
+      - admin_users.view
+      - admin_users.manage
+      - creator.view
+      - creator.manage
+      type: string
+      description: |-
+        * `users.view` - users.view
+        * `users.edit` - users.edit
+        * `users.delete` - users.delete
+        * `users.suspend` - users.suspend
+        * `roles.view` - roles.view
+        * `roles.manage` - roles.manage
+        * `content.view` - content.view
+        * `content.manage` - content.manage
+        * `economy.view` - economy.view
+        * `economy.manage` - economy.manage
+        * `analytics.view` - analytics.view
+        * `admin_users.view` - admin_users.view
+        * `admin_users.manage` - admin_users.manage
+        * `creator.view` - creator.view
+        * `creator.manage` - creator.manage
+    RefreshTokenRequest:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+          minLength: 1
+      required:
+      - refresh_token
+    ResendOTPRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+      required:
+      - email
+    ResetPasswordConfirmRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        otp:
+          type: string
+          writeOnly: true
+          minLength: 6
+          maxLength: 6
+        new_password:
+          type: string
+          writeOnly: true
+          minLength: 8
+        confirm_new_password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - confirm_new_password
+      - email
+      - new_password
+      - otp
+    SeasonCreateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+        skillworld:
+          $ref: '#/components/schemas/SkillworldEnum'
+      required:
+      - skillworld
+      - title
+    SignupRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+        last_name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+          minLength: 1
+        phone:
+          type: string
+          nullable: true
+        password:
+          type: string
+          writeOnly: true
+          minLength: 8
+        password_confirm:
+          type: string
+          writeOnly: true
+          minLength: 8
+      required:
+      - email
+      - first_name
+      - last_name
+      - password
+      - password_confirm
+    SkillworldEnum:
+      enum:
+      - design
+      - code
+      - writing
+      - marketing
+      type: string
+      description: |-
+        * `design` - Design
+        * `code` - Code
+        * `writing` - Writing
+        * `marketing` - Marketing
+    StatusEnum:
+      enum:
+      - draft
+      - published
+      - rejected
+      type: string
+      description: |-
+        * `draft` - Draft
+        * `published` - Published
+        * `rejected` - Rejected — Video Too Long
+    TaskSubmissionRequest:
+      type: object
+      properties:
+        task_id:
+          type: string
+          format: uuid
+        submission_text:
+          type: string
+        submission_url:
+          type: string
+          format: uri
+          nullable: true
+          minLength: 1
+      required:
+      - task_id
+    TrackViewRequest:
+      type: object
+      properties:
+        episode_id:
+          type: string
+          format: uuid
+        watch_duration_seconds:
+          type: integer
+          minimum: 0
+        completed:
+          type: boolean
+          default: false
+      required:
+      - episode_id
+      - watch_duration_seconds
+    UpdateAdminUserRoleTypeEnum:
+      enum:
+      - admin
+      - creator
+      type: string
+      description: |-
+        * `admin` - admin
+        * `creator` - creator
+    VerifyEmailRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        otp:
+          type: string
+          minLength: 6
+          maxLength: 6
+      required:
+      - email
+      - otp
+    VerifyForgotPasswordCodeRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        otp:
+          type: string
+          writeOnly: true
+          minLength: 6
+          maxLength: 6
+      required:
+      - email
+      - otp
+  securitySchemes:
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

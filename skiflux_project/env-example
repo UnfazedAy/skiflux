@@ -1,0 +1,108 @@
+USER_JWT_SECRET=YOUR-USER-JWT-SECRET
+ADMIN_JWT_SECRET=YOUR-ADMIN-JWT-SECRET
+DEBUG=YOUR-DEBUG
+ALLOWED_HOSTS=YOUR-ALLOWED-HOSTS
+CORS_ALLOWED_ORIGINS=YOUR-CORS-ALLOWED-ORIGINS
+ACCESS_TOKEN_LIFETIME_MINUTES=15
+REFRESH_TOKEN_LIFETIME_DAYS=7
+PASSWORD_RESET_TOKEN_LIFETIME=10
+EMAIL_HOST_USER=YOUR-EMAIL-HOST-USER
+EMAIL_HOST_PASSWORD=YOUR-EMAIL-HOST-PASSWORD
+REDIS_URL=YOUR-REDIS-URL
+DATABASE_URL=YOUR-DATABASE-URL
+AVATAR_MAX_SIZE=2
+GOOGLE_CLIENT_ID=YOUR-GOOGLE-CLIENT-ID
+GOOGLE_CLIENT_SECRET=YOUR-GOOGLE-CLIENT-SECRET
+GOOGLE_REDIRECT_URI=YOUR-GOOGLE-REDIRECT-URI
+SOCIAL_AUTH_SUCCESS_REDIRECT=YOUR-SOCIAL-AUTH-SUCCESS-REDIRECT
+SOCIAL_AUTH_FAILURE_REDIRECT=YOUR-SOCIAL-AUTH-FAILURE-REDIRECT
+
+
+FACEBOOK_APP_ID=YOUR-FACEBOOK-APP-ID
+FACEBOOK_APP_SECRET=YOUR-FACEBOOK-APP-SECRET
+
+APPLE_CLIENT_ID=YOUR-APPLE-CLIENT-ID
+
+RESEND_API_KEY=YOUR-RESEND-API-KEY
+CLOUDINARY_CLOUD_NAME=YOUR-CLOUDINARY-CLOUD-NAME
+CLOUDINARY_API_KEY=YOUR-CLOUDINARY-API-KEY
+CLOUDINARY_API_SECRET=YOUR-CLOUDINARY-API-SECRET
+PUBLIC_API_BASE_URL=https://api.yourdomain.com
+CLOUDINARY_EAGER_WEBHOOK_URL=https://api.yourdomain.com/api/v1/webhooks/cloudinary/eager/
+CLOUDINARY_WEBHOOK_TOLERANCE_SECONDS=300
+CLOUDINARY_STREAMING_FALLBACK_DELAY_SECONDS=600
+
+BREVO_API_KEY=YOUR-BREVO-API-KEY
+DEFAULT_FROM_EMAIL=YOUR-DEFAULT-FROM-EMAIL
+
+FLUTTERWAVE_SECRET_KEY=YOUR-FLUTTERWAVE-SECRET-KEY
+PAYSTACK_SECRET_KEY=YOUR-PAYSTACK-SECRET-KEY
+PAYSTACK_PUBLIC_KEY=YOUR-PAYSTACK-PUBLIC-KEY
+STRIPE_SECRET_KEY=YOUR-STRIPE-SECRET-KEY
+STRIPE_PUBLISHABLE_KEY=YOUR-STRIPE-PUBLISHABLE-KEY
+STRIPE_WEBHOOK_SECRET=YOUR-STRIPE-WEBHOOK-SECRET
+PAYMENT_REDIRECT_URL=YOUR-PAYMENT-REDIRECT-URL
+
+SECRET_KEY=
+PAYLOAD_ENCRYPTION_KEY=
+
+DB_CONN_MAX_AGE=60
+DB_DISABLE_CURSORS=false
+TEST_DATABASE_NAME=test_skiflux
+
+SENTRY_DSN=
+
+FACEBOOK_REDIRECT_URI=
+
+APPLE_TEAM_ID=
+APPLE_KEY_ID=
+APPLE_PRIVATE_KEY=
+APPLE_REDIRECT_URI=
+
+FLUTTERWAVE_WEBHOOK_SECRET=
+
+ADYEN_API_KEY=
+ADYEN_MERCHANT_ACCOUNT=
+ADYEN_ENVIRONMENT=test
+ADYEN_WEBHOOK_SECRET=
+
+GEMINI_API_KEY=
+
+SUPPORT_EMAIL_HOST=imap.gmail.com
+SUPPORT_EMAIL_PORT=993
+SUPPORT_EMAIL_USERNAME=
+SUPPORT_EMAIL_PASSWORD=
+SUPPORT_SMTP_HOST=smtp.gmail.com
+SUPPORT_SMTP_PORT=465
+
+# MinIO (S3-compatible) - used for durable cross-container temp file handoff (web -> workers)
+# Required for episode video uploads, reuploads, creator avatars, user onboarding avatars.
+# Point to your MinIO server (e.g. DigitalOcean droplet or local MinIO).
+# Note at the moment it's not really minio but cloudflare r2.
+# Minio keywords are just used for compatibility with the code from previous implementation.
+MINIO_ENDPOINT_URL=https://storage.mandell.tech
+MINIO_ACCESS_KEY=YOUR_MINIO_ACCESS_KEY
+MINIO_SECRET_KEY=YOUR_MINIO_SECRET_KEY
+MINIO_BUCKET_NAME=skiflux-uploads
+
+# Push Notifications (FCM legacy server key)
+# Required to actually deliver push notifications to iOS/Android/Web devices.
+#
+# HOW TO OBTAIN:
+# 1. https://console.firebase.google.com/ → select/create project.
+# 2. Project settings (gear) → Cloud Messaging tab.
+# 3. If "Cloud Messaging API (Legacy)" shows "..." menu:
+#    Click "..." → "Manage API in Google Cloud Console" → Enable the API.
+# 4. Refresh the tab in Firebase Console.
+# 5. Copy the "Server key" value under Cloud Messaging API (Legacy).
+#
+# Also register your app (Android package name + iOS bundle ID) in the same Firebase project
+# and include the config files in the mobile client.
+#
+# Note: This is the simple legacy key. For new projects prefer HTTP v1 + service account
+# (we can upgrade the sender later; google-auth is already a dependency).
+FCM_SERVER_KEY=YOUR_FCM_SERVER_KEY
+
+# Redis is already required for Celery + cache.
+# It is also used for Django Channels (WebSocket realtime layer) for live submissions, wallet, comments.
+# No extra env var needed if REDIS_URL is set.
