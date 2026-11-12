@@ -1,413 +1,422 @@
-# SkiFlux Backend API
+# SkiFlux — Scalable EdTech & Social Learning Backend
 
-This is the backend API for the SkiFlux platform, built with Django, Django REST Framework, and Celery. It follows a clean service-repository architecture to keep business logic, persistence, and API presentation separate.
+SkiFlux is a Django REST Framework backend for an online learning and creator
+community. It brings learners, educators, and platform administrators together
+around structured video lessons, learner submissions, discussion, and creator
+monetization. The API also provides account management, moderation, support,
+notifications, and financial workflows for the platform.
 
-## 🏛️ Architecture Overview
+## Contents
 
-The project is organized into these core layers:
-* **Views (`skiflux/views/`)**: HTTP endpoints, request validation, and response assembly.
-* **Serializers (`skiflux/serializers/`)**: Input validation and API response object shaping.
-* **Services (`skiflux/services/`)**: Business workflows, including payments, wallets, withdrawals, content approval, and admin operations.
-* **Repositories (`skiflux/repositories/`)**: Database access abstractions for models.
-* **Models (`skiflux/models/`)**: Django ORM entities representing core domain objects.
-* **Tasks (`skiflux/tasks/`)**: Celery-powered asynchronous jobs.
+- [Key features](#key-features)
+- [Technology stack](#technology-stack)
+- [System architecture](#system-architecture)
+- [Engineering highlights](#selected-engineering-highlights)
+- [Project structure](#project-structure)
+- [Getting started](#getting-started)
+- [Environment variables](#environment-variables)
+- [API overview](#api-overview)
+- [Testing and code quality](#testing-and-code-quality)
+- [Development status and limitations](#development-status-and-limitations)
+- [Maintainers and contributions](#maintainers-and-contributions)
 
-## 🛠️ Prerequisites
+## Key features
 
-Install the following before running the project:
-* **Python 3.12+**
-* **Poetry**
-* **PostgreSQL** (recommended for production-like development)
-* **Redis** (required for Celery and cache)
+The features below are present in the repository. Integrations that depend on
+external services require valid credentials and provider-side configuration.
 
-## 🚀 Local Setup
+### Authentication and access control
 
-### 1. Install dependencies
+- Email registration and verification, password reset, token refresh, and
+  logout.
+- JWT authentication with separate signing secrets and authentication classes
+  for learner and admin accounts.
+- Social authentication flows for Google, Apple, and Facebook mobile sign-in.
+- Configurable admin roles and permissions, super-admin checks, account
+  activation and suspension controls, and failed-login lockout handling.
+- Creator access through the admin-user/studio model, with verification and
+  profile checks.
 
-```bash
-cd skiflux_project
-poetry install
+### Learning content and creator tools
+
+- Creator studio workflows for seasons, episodes, episode tasks, and learner
+  submissions.
+- Learner-facing episode discovery, search, recommendations, likes, saves,
+  comments, follows, ratings, and task submissions.
+- Admin review queues and actions for episodes and task submissions.
+- Learning progress and gamification features, including streaks, badges, and
+  platform tasks.
+
+### Video and media
+
+- Upload handoff through S3-compatible object storage, configured using the
+  legacy `MINIO_*` setting names (the configuration supports Cloudflare R2).
+- Cloudinary storage and video processing, including asynchronous eager
+  transformations and HLS readiness checks.
+- Signed media URLs and a Cloudinary webhook that queues processing completion
+  handling.
+- Upload and processing state transitions with creator email notifications.
+
+### Moderation and community safety
+
+- Gemini-based comment classification runs as a Celery task.
+- AI classifications can flag comments for administrative review; moderation
+  actions, user reports, action logs, and suspension management are also
+  implemented.
+- Suspension expiry is handled by a scheduled task. Automatic suspension
+  based on AI confidence is not enabled in the current task implementation.
+
+### Support and email
+
+- Support tickets, ticket messages, assignment, resolution, reopening, and
+  satisfaction scores.
+- Scheduled IMAP inbox polling to create or update tickets from incoming email,
+  with basic subject/body categorization and threading.
+- Admin replies are sent over SMTP; application emails such as account and
+  upload notifications are sent asynchronously through Brevo.
+
+### Payments and creator monetization
+
+- Gateway adapters for Flutterwave, Paystack, Stripe, and Adyen.
+- Wallet top-ups, saved cards, currency and gateway fee configuration, a
+  Skillcoin transaction ledger, and withdrawal requests.
+- Admin finance operations for reviewing transactions, processing withdrawals,
+  refunds, adjustments, and wallet integrity checks.
+- Stripe Connect onboarding and creator revenue workflows are represented in
+  the codebase.
+- Payment webhook routes are registered for Flutterwave, Paystack, and Stripe;
+  an Adyen adapter exists, but an Adyen webhook route is not registered.
+
+### Notifications and administration
+
+- In-app notifications, device registration, Firebase Cloud Messaging push
+  delivery, user notification preferences, and platform announcements.
+- Celery tasks for email, push delivery, content processing, moderation,
+  reminders, support inbox polling, and other scheduled work.
+- Admin dashboards and tools for users, creators, content review, moderation,
+  finance, notifications, support, platform configuration, and activity logs.
+
+## Technology stack
+
+| Technology | Category | Purpose |
+| --- | --- | --- |
+| Python 3.12 | Language | Backend runtime |
+| Django 6.0 | Web framework | Application configuration, ORM, and HTTP foundation |
+| Django REST Framework | API framework | REST endpoints, authentication integration, and serializers |
+| PostgreSQL | Database | Primary application database; configured with `psycopg2` |
+| Redis | Cache and broker | Django cache plus Celery broker and result backend |
+| Celery | Background processing | Asynchronous jobs and periodic tasks |
+| PyJWT | Authentication | Custom learner and admin JWT creation and validation |
+| drf-spectacular | API documentation | OpenAPI schema and Swagger UI |
+| Cloudinary | Media | Private media assets and video transformations/streaming |
+| S3-compatible object storage (Cloudflare R2 configuration) | Temporary media storage | Cross-process upload handoff via `boto3` |
+| Google Gemini (`gemini-2.5-flash`) | AI moderation | Comment classification |
+| Flutterwave, Paystack, Stripe, Adyen | Payments | Gateway-specific payment and payout integrations |
+| Brevo | Email delivery | Application email delivery over its SMTP API |
+| IMAP and SMTP | Support email | Support inbox ingestion and email replies |
+| Firebase Admin SDK | Push notifications | Firebase Cloud Messaging delivery |
+| Poetry | Dependency management | Python package and virtual-environment management |
+| Pytest and Ruff | Testing and code quality | Test execution, linting, and formatting checks |
+| Docker Compose | Local infrastructure | Optional local PostgreSQL and Redis services |
+
+## System architecture
+
+The backend separates HTTP handling, validation, business workflows, and
+persistence through the following path:
+
+**Views → Serializers → Services → Repositories → Models**
+
+Celery workers consume queued tasks through Redis. Celery Beat schedules
+recurring jobs. Redis also backs Django's non-test cache; tests configure an
+in-memory cache. Media uploads use S3-compatible object storage for temporary
+handoff and Cloudinary for media storage and processing. The Cloudinary
+completion webhook queues a task to update episode state. Services also call
+payment gateways, Gemini, Brevo, support mail servers, and Firebase as needed.
+
+```mermaid
+flowchart LR
+    Client[API client] --> URLs[Django URL configuration]
+    URLs --> Views[Views]
+    Views --> Serializers[Serializers]
+    Serializers --> Services[Services]
+    Services --> Repositories[Repositories]
+    Repositories --> Models[Django models]
+    Models --> PostgreSQL[(PostgreSQL)]
+
+    Services --> Cache[Redis cache]
+    Services --> Broker[Redis Celery broker]
+    Beat[Celery Beat] --> Broker
+    Broker --> Worker[Celery workers]
+    Worker --> Services
+
+    Services --> Gateways[Payment gateway adapters]
+    Gateways --> Providers[Flutterwave / Paystack / Stripe / Adyen]
+    Services --> Gemini[Google Gemini]
+    Services --> Staging[S3-compatible object storage]
+    Services --> Cloudinary[Cloudinary media processing]
+    Cloudinary --> MediaHook[Cloudinary webhook]
+    MediaHook --> Broker
+    Worker --> Email[Brevo and support mail servers]
+    Worker --> Push[Firebase Cloud Messaging]
 ```
 
-If you need developer tooling such as Ruff and formatting checks:
+## Selected engineering highlights
+
+- **Asynchronous workflows:** Celery tasks handle operations such as email,
+  push delivery, comment moderation, and media-processing callbacks. Beat
+  schedules recurring work, including reminders, token cleanup, suspension
+  expiry, and support inbox polling.
+- **Payment deduplication and ledger controls:** Top-up initiation stores
+  user-scoped idempotency keys and checks for existing pending transactions.
+  Payment verification uses database transactions and row locking, and wallet
+  credits carry transaction references and idempotency keys. Management
+  commands and tests cover ledger and wallet invariants.
+- **Provider-specific payment adapters:** A common gateway interface and
+  registry select configured providers while payment services handle the
+  shared transaction workflow. Provider webhook coverage is not uniform:
+  Flutterwave, Paystack, and Stripe have registered webhook routes; Adyen does
+  not.
+- **Separate JWT trust boundaries:** Learner and administrator tokens use
+  distinct secrets and authentication classes. Admin authorization is backed
+  by role/permission checks, and refresh tokens can be blacklisted.
+- **Cloud video-processing lifecycle:** Upload processing is asynchronous.
+  A signed Cloudinary callback is validated, queued, and used to transition
+  episode state when the expected HLS transformation is ready.
+- **Moderation with human review:** Gemini classification can flag comments
+  for review, while administrative actions and audit records remain available
+  for human moderation. AI-triggered automatic suspension is currently
+  disabled.
+- **Support by email:** Scheduled mailbox polling ingests unseen messages,
+  links replies to existing tickets when possible, and creates ticket records.
+  Admin replies are sent through SMTP and recorded in the ticket thread.
+
+These are descriptions of code paths, not claims about measured throughput,
+availability, or production operation.
+
+## Project structure
+
+```text
+.
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+├── README.md
+└── skiflux_project/
+    ├── Dockerfile
+    ├── docker-compose.yml
+    ├── docker-compose.prod.yml
+    ├── env-example
+    ├── manage.py
+    ├── poetry.lock
+    ├── pyproject.toml
+    ├── pytest.ini
+    ├── scripts/
+    │   ├── beat.sh
+    │   ├── build.sh
+    │   ├── deploy.sh
+    │   ├── local_start.sh
+    │   ├── start.sh
+    │   └── worker.sh
+    ├── skiflux/
+    │   ├── deps/
+    │   ├── gateways/
+    │   ├── management/commands/
+    │   ├── migrations/
+    │   ├── models/
+    │   ├── repositories/
+    │   ├── serializers/
+    │   ├── services/
+    │   ├── tasks/
+    │   ├── urls/
+    │   ├── utils/
+    │   └── views/
+    ├── skiflux_project/
+    │   ├── celery.py
+    │   ├── settings.py
+    │   ├── urls.py
+    │   └── wsgi.py
+    └── tests/
+        ├── api_v1/
+        ├── concurrency/
+        ├── gateways/
+        ├── services/
+        ├── tasks/
+        └── webhooks/
+```
+
+## Getting started
+
+### Prerequisites
+
+- Python 3.12
+- Poetry
+- Docker with the Compose plugin, or a separately managed PostgreSQL and Redis
+  instance
+- Credentials for the external integrations you intend to exercise
+
+The regular application settings use `DATABASE_URL` for the database and
+default to a local Redis URL. The test settings switch to an in-memory SQLite
+database and local-memory cache.
+
+### Clone and configure
 
 ```bash
+git clone https://github.com/UnfazedAy/skiflux.git
+cd skiflux/skiflux_project
 poetry install --with dev
-```
-
-### 2. Configure environment variables
-
-Copy the environment template and update values:
-
-```bash
 cp env-example .env
 ```
 
-Required core variables:
-* `DATABASE_URL`
-* `REDIS_URL`
-* `SECRET_KEY`
-* `USER_JWT_SECRET`
-* `ADMIN_JWT_SECRET`
-* `PAYLOAD_ENCRYPTION_KEY`
-* `PUBLIC_API_BASE_URL`
-* `EMAIL_HOST_USER`
-* `EMAIL_HOST_PASSWORD`
+Edit `.env` before starting Django. The checked-in `env-example` contains
+placeholders, and `PAYLOAD_ENCRYPTION_KEY` is blank there; set it to a valid
+Fernet key for payment and saved-card workflows. For example, generate a new
+key with:
 
-Required payment variables:
-* `FLUTTERWAVE_SECRET_KEY`
-* `FLUTTERWAVE_WEBHOOK_SECRET`
-* `PAYSTACK_SECRET_KEY`
-* `PAYSTACK_PUBLIC_KEY`
-* `STRIPE_SECRET_KEY`
-* `STRIPE_PUBLISHABLE_KEY`
-* `STRIPE_WEBHOOK_SECRET`
-* `ADYEN_API_KEY`
-* `ADYEN_MERCHANT_ACCOUNT`
-* `ADYEN_ENVIRONMENT`
-* `ADYEN_WEBHOOK_SECRET`
-* `PAYMENT_REDIRECT_URL`
+```bash
+poetry run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
 
-> Security note: never commit real secret keys or production credentials to source control.
+Copy the generated key into your local `.env`; do not commit it.
 
-### 3. Database setup
+### Start PostgreSQL and Redis
 
-Apply database migrations:
+From `skiflux_project/`, start the Compose database and Redis services:
+
+```bash
+docker compose up -d db redis
+```
+
+The local Compose database uses the development-only credentials declared in
+`docker-compose.yml`. Set `DATABASE_URL` in `.env` to
+`postgres://skiflux:skiflux@localhost:5432/skiflux` for this local setup.
+Alternatively, point `DATABASE_URL` and `REDIS_URL` at your own services.
+
+### Apply migrations and run the API
 
 ```bash
 poetry run python manage.py migrate
+poetry run python manage.py runserver
 ```
 
-Optionally create a superuser for admin operations:
+The development server listens on `http://127.0.0.1:8000` by default. The
+built-in API documentation is available at
+`http://127.0.0.1:8000/api/docs/`.
+
+### Run background processing
+
+Run each command in a separate terminal from `skiflux_project/`:
 
 ```bash
-poetry run python manage.py createsuperuser
+poetry run celery -A skiflux_project worker --loglevel=info
 ```
-
-Create an internal superadmin with all privileges for admin operations and more:
 
 ```bash
-poetry run python manage.py createsuperadmin
+poetry run celery -A skiflux_project beat --loglevel=info
 ```
 
-## 🧹 Code Quality / Linting
+Celery uses `REDIS_URL` as its broker and result backend. Some scheduled or
+on-demand tasks need their respective external credentials; for example,
+support inbox polling needs the support mailbox credentials.
 
-This project uses Ruff for lint checking and auto-fixing Python code.
+## Environment variables
 
-Run lint checks only:
-```bash
-poetry run ruff check .
-```
+`env-example` is the canonical variable-name template. The application reads
+some settings as mandatory at Django configuration time, while others are
+needed only for a particular integration. Never place production credentials
+in documentation or source control.
 
-Run fixes only:
-```bash
-poetry run ruff check --fix .
-```
+| Variable(s) | Requirement | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL` | Required for normal application settings | Database connection URL |
+| `SECRET_KEY` | Set a non-default value outside local testing | Django secret and fallback signing key |
+| `DEFAULT_FROM_EMAIL`, `BREVO_API_KEY` | Required by settings | Sender identity and Brevo application email delivery |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Required by settings | Cloudinary SDK configuration |
+| `PAYLOAD_ENCRYPTION_KEY` | Required for payment/card workflows; use a valid Fernet key | Encryption of sensitive gateway payload data |
+| `REDIS_URL` | Recommended; required for Celery and the configured non-test cache | Redis connection URL (defaults to `redis://localhost:6379/0`) |
+| `USER_JWT_SECRET`, `ADMIN_JWT_SECRET` | Optional; default to `SECRET_KEY` | Separate learner and admin JWT signing keys |
+| `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS` | Set for each deployment | Django host validation and browser-origin policy |
+| `ACCESS_TOKEN_LIFETIME_MINUTES`, `REFRESH_TOKEN_LIFETIME_DAYS`, `PASSWORD_RESET_TOKEN_LIFETIME` | Optional | Token and password-reset lifetimes |
+| `PUBLIC_API_BASE_URL`, `CLOUDINARY_EAGER_WEBHOOK_URL` | Optional; set for reachable callbacks | Public API address and Cloudinary eager-processing callback |
+| `MINIO_ENDPOINT_URL`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET_NAME` | Needed for upload handoff | S3-compatible storage configuration; names are retained from an earlier MinIO-compatible implementation |
+| `FIREBASE_SERVICE_ACCOUNT`, `FIREBASE_SERVICE_ACCOUNT_PATH` | Needed for FCM delivery | Firebase service-account JSON or path to a service-account file |
+| `GEMINI_API_KEY` | Needed for AI comment moderation | Google Gemini API access |
+| `FLUTTERWAVE_SECRET_KEY`, `FLUTTERWAVE_WEBHOOK_SECRET` | Needed for Flutterwave payments/webhooks | Flutterwave credentials |
+| `PAYSTACK_SECRET_KEY`, `PAYSTACK_PUBLIC_KEY` | Needed for Paystack payment flows | Paystack credentials |
+| `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` | Needed for Stripe payments/webhooks | Stripe credentials |
+| `ADYEN_API_KEY`, `ADYEN_MERCHANT_ACCOUNT`, `ADYEN_ENVIRONMENT`, `ADYEN_WEBHOOK_SECRET` | Needed for Adyen workflows | Adyen credentials and environment selection |
+| `PAYMENT_REDIRECT_URL` | Optional; defaults to a SkiFlux app callback URI | Payment checkout return target |
+| `SUPPORT_EMAIL_HOST`, `SUPPORT_EMAIL_PORT`, `SUPPORT_EMAIL_USERNAME`, `SUPPORT_EMAIL_PASSWORD` | Needed for inbox polling | IMAP support mailbox configuration |
+| `SUPPORT_SMTP_HOST`, `SUPPORT_SMTP_PORT` | Needed for support email replies | SMTP server configuration; uses the support mailbox credentials |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` | Needed for Google social sign-in | Google OAuth configuration |
+| `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`, `FACEBOOK_REDIRECT_URI` | Needed for Facebook mobile sign-in | Facebook app configuration |
+| `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`, `APPLE_REDIRECT_URI` | Needed for Apple sign-in | Apple sign-in configuration |
+| `SENTRY_DSN` | Optional | Enables Sentry Django/Celery integration |
+| `DB_CONN_MAX_AGE`, `DB_DISABLE_CURSORS`, `TEST_DATABASE_NAME`, `DEBUG` | Optional | Database connection and local/test settings |
 
-Run a format, check and then fix issues in sequence:
-```bash
-poetry run ruff format . && poetry run ruff check --fix .
-```
+## API overview
 
-> Tip: `poetry run ruff check --fix .` will both report issues and apply automatic fixes where possible.
+All application endpoints are mounted under `/api/v1/`. Representative routes
+from the URL configuration include:
 
-## Tests are located in the `skiflux/tests/` directory. To run the tests, use:
+| API group | Example endpoints |
+| --- | --- |
+| Health and authentication | `GET /api/v1/health/`, `POST /api/v1/auth/signup`, `POST /api/v1/auth/login`, `POST /api/v1/auth/token/refresh` |
+| Learner content | `GET /api/v1/seasons`, `GET /api/v1/episodes/{episode_id}`, `POST /api/v1/episodes/comment`, `POST /api/v1/episodes/task/submit` |
+| Creator studio | `POST /api/v1/creator/create-season`, `POST /api/v1/creator/create-episode`, `POST /api/v1/creator/episode/{id}/reupload-video` |
+| Wallet and payments | `POST /api/v1/wallet/topup/initiate`, `POST /api/v1/wallet/topup/verify`, `POST /api/v1/wallet/withdrawals/request` |
+| Admin | `GET /api/v1/admin/dashboard/overview`, `GET /api/v1/admin/content/episodes/review`, `GET /api/v1/admin/roles` |
+| Support | `GET /api/v1/admin/support/tickets/`, `POST /api/v1/admin/support/tickets/{ticket_id}/reply/` |
+| Webhooks | `POST /api/v1/webhooks/payment/flutterwave/`, `POST /api/v1/webhooks/payment/paystack/`, `POST /api/v1/webhooks/payment/stripe/`, `POST /api/v1/webhooks/cloudinary/eager/` |
+
+The generated OpenAPI schema and Swagger UI are served at
+`/api/schema/` and `/api/docs/`, respectively, when the application is running.
+
+## Testing and code quality
+
+Run the test suite from `skiflux_project/`:
 
 ```bash
 poetry run pytest
 ```
 
-### 4. Start the application
-
-Run the Celery worker in one terminal:
-
-```bash
-poetry run celery -A skiflux_project worker -l info
-```
-
-Run the Celery beat in one terminal:
+Tests use the project's pytest/Django configuration and in-memory SQLite
+settings. Ruff formatting and lint checks are:
 
 ```bash
-poetry run celery -A skiflux_project beat -l info
+poetry run ruff format --check .
+poetry run ruff check .
 ```
 
-Run the Django server in another terminal:
+The GitHub Actions workflow defines Pytest, Ruff formatting, and Ruff lint jobs.
+Those jobs are gated to pull requests; the workflow is configured for pull
+requests targeting `dev` and pushes to `main`.
 
-```bash
-poetry run python manage.py runserver
-```
+## Development status and limitations
 
-## 🔧 Payment System Overview
+This repository documents the implementation currently present in the backend;
+it does not assert that every external integration is configured or operating
+in a deployed environment.
 
-This backend supports wallet top-ups, saved cards, currency mapping, gateway
-fee configuration, and withdrawal workflows.
+- A fresh checkout needs local environment values and credentials for the
+  services being used. The Firebase service-account file is not tracked.
+- Adyen payment code exists, but the registered payment webhook endpoints
+  cover Flutterwave, Paystack, and Stripe only.
+- AI moderation currently flags comments; the automatic suspension option in
+  the moderation task is disabled.
+- Redis, PostgreSQL, Cloudinary, email, payment, AI, and push workflows depend
+  on local services or provider credentials. Their end-to-end operation
+  requires manual configuration and testing.
+- The default host and CORS settings are permissive. Configure explicit
+  `ALLOWED_HOSTS` and `CORS_ALLOWED_ORIGINS` values for the target environment.
+- Docker and deployment scripts are present, but their presence alone does not
+  establish that a production deployment has been validated.
 
-### Supported gateways
-* `flutterwave`
-* `paystack`
-* `stripe`
-* `adyen`
+## Maintainers and contributions
 
-Gateway implementations are located in `skiflux/gateways/` and are selected from `skiflux/gateways/registry.py`.
+The project metadata in `skiflux_project/pyproject.toml` lists Mandel,
+Ayomide, and Areegbe David as project authors. No license file is present in
+the repository; no license terms are implied here.
 
-### Key payment models
-
-The payment subsystem uses two main configuration models:
-* `SystemFinancialConfig` (`skiflux/models/wallet.py`)
-* `CurrencyConfig` (`skiflux/models/currency.py`)
-
-#### `SystemFinancialConfig`
-Controls global platform payment behavior:
-* `enabled_topup_gateways` — payment gateways users may use to fund wallets.
-* `enabled_withdrawal_gateways` — gateways allowed for admin withdrawal payout processing.
-* `pass_gateway_fees_to_customer` — if `true`, gateway fees are charged on top of the requested top-up amount.
-* `min_withdrawal_amount` and `withdrawal_fee_percentage` — withdrawal rules.
-* `require_withdrawal_approval` — if `false`, withdrawals are auto-processed
-  via the gateway immediately on request; if `true`, an admin must call
-  `withdrawals/process`.
-* `max_withdrawal_accounts` — how many payout destinations per user/creator.
-* `max_saved_cards` and `card_verification_amount` — saved-card limits and
-  Paystack verification charge (refunded to the card after add-card).
-* `connect_payout_currency` — fiat currency for Stripe Connect payouts.
-* `name_match_mode` — Paystack bank account name matching (`strict`/`fuzzy`/`relaxed`).
-* `default_currency` — fallback currency for top-ups.
-
-#### `CurrencyConfig`
-Defines supported currencies and gateway compatibility:
-* `currency_code` — e.g. `NGN`, `USD`
-* `currency_name`
-* `currency_symbol`
-* `skillcoin_rate` — how much fiat equals one Skillcoin.
-* `subunit_multiplier` — smallest-unit multiplier (e.g. `100` for NGN/USD, `1000` for KWD).
-* `supported_gateways` — which gateways can process this currency.
-* `is_active` — whether the currency may be used.
-
-### User payment flow
-
-#### 1. Initiate wallet top-up
-
-Endpoint:
-* `POST /api/v1/wallet/topup/initiate`
-
-Request payload:
-* `amount_fiat` (required)
-* `currency` (optional, defaults to system default currency)
-* `gateway_name` (optional)
-* `redirect_url` (optional)
-* `payment_method` (optional: `card`, `bank_transfer`, or `all` — default `all`)
-* `save_card` (optional)
-* `idempotency_key` (optional)
-
-Process:
-1. Validate the requested amount.
-2. Resolve the requested currency via `CurrencyConfig`.
-3. Ensure the selected gateway is enabled in `SystemFinancialConfig.enabled_topup_gateways`.
-4. Create or reuse a pending `PaymentTransaction`.
-5. Initiate the gateway payment and return a checkout URL.
-
-Successful response includes:
-* `transaction_id`
-* `checkout_url`
-* `tx_ref`
-* `gateway_reference`
-* `gateway`
-* `amount_fiat`
-* `gateway_fee`
-* `charged_amount`
-* `currency`
-
-#### 2. Verify wallet top-up (or add-card)
-
-Endpoint:
-* `POST /api/v1/wallet/topup/verify`
-
-Request payload:
-* `tx_ref` (required) — prefixes: `skf-topup-*` (top-up), `skf-card-*` (add-card)
-* `gateway_reference` (optional)
-
-Process:
-1. Load the `PaymentTransaction` by `tx_ref`.
-2. Verify the gateway transaction status.
-3. If successful: credit wallet (top-ups only), save card (when `save_card=true`),
-   refund Paystack verification charge (add-card only).
-
-Also used after `POST /wallet/cards/add` — same endpoint, same `tx_ref`.
-
-#### 3. One-tap top-up with a saved card
-
-Endpoint:
-* `POST /api/v1/wallet/topup/charge-card`
-
-Request payload:
-* `saved_card_id` (required)
-* `amount_fiat` (required)
-* `currency` (optional)
-* `idempotency_key` (optional — auto-generated if omitted; also accepts
-  `Idempotency-Key` header)
-
-Synchronous — no redirect. Returns the credited `PaymentTransaction`.
-
-#### 4. Saved cards
-
-| Action | Endpoint |
-| --- | --- |
-| Add card | `POST /api/v1/wallet/cards/add` |
-| List cards | `GET /api/v1/wallet/cards` |
-| Remove | `DELETE /api/v1/wallet/cards/{id}` |
-| Set default | `POST /api/v1/wallet/cards/{id}/set-default` |
-
-* **Paystack** — small verification charge, refunded to the card on success.
-* **Stripe** — setup mode, no charge (`verification_amount: "0.00"`).
-* Flow: `cards/add` → open `checkout_url` → `topup/verify` with `tx_ref`.
-
-### Webhook processing
-
-Webhook endpoints are defined in `skiflux/urls/webhooks.py`:
-* `POST /api/v1/webhooks/payment/flutterwave/`
-* `POST /api/v1/webhooks/payment/paystack/`
-* `POST /api/v1/webhooks/payment/stripe/`
-
-Webhook flow:
-1. Verify the gateway signature.
-2. Parse the event payload.
-3. Identify the associated `tx_ref` (or `skf-wd-*` for Paystack transfers).
-4. Finalize payment (credit wallet / save card / refund verification charge) or
-   mark withdrawal completed.
-
-**Local testing:**
-* Paystack — `ngrok http 8000`, register
-  `https://<subdomain>.ngrok-free.app/api/v1/webhooks/payment/paystack/`
-* Stripe — `stripe listen --forward-to localhost:8000/api/v1/webhooks/payment/stripe/`,
-  copy `whsec_...` to `STRIPE_WEBHOOK_SECRET`, restart Django
-
-Stripe events that save cards: `checkout.session.completed`,
-`setup_intent.succeeded`. Paystack `refund.*` events after add-card are
-acknowledged but ignored.
-
-## 🧑‍💼 Admin payment and financial configuration
-
-### Financial configuration
-
-Admin endpoint:
-* `GET /api/v1/admin/finance/financial-config`
-* `PATCH /api/v1/admin/finance/financial-config`
-
-Superadmins can update:
-* enabled top-up and withdrawal gateways
-* default currency
-* withdrawal limits and fees
-* whether gateway fees are passed to customers
-* cashback and creator revenue percentages
-* maximum withdrawal accounts
-
-### Currency management
-
-Admin endpoint:
-* `GET /api/v1/admin/finance/currencies`
-* `POST /api/v1/admin/finance/currencies`
-
-Admins can create or update currencies with:
-* `currency_code`
-* `currency_name`
-* `currency_symbol`
-* `skillcoin_rate`
-* `supported_gateways`
-
-### Gateway fee management
-
-Admin endpoint:
-* `GET /api/v1/admin/finance/gateway-fees`
-* `POST /api/v1/admin/finance/gateway-fees/update`
-* `DELETE /api/v1/admin/finance/gateway-fees/<config_id>`
-
-This config controls:
-* gateway fee percentage
-* flat fee
-* flat fee threshold
-* VAT percentage and flat amount
-* fee cap amount
-
-### Payment transaction audit
-
-Admin endpoint:
-* `GET /api/v1/admin/finance/payment-transactions`
-
-Filter by status, gateway, or user email.
-
-## 💼 Wallet and withdrawal features
-
-User wallet endpoints:
-* `GET /api/v1/wallet/my-wallet`
-* `GET /api/v1/wallet/my-transactions`
-* `GET /api/v1/wallet/summary`
-* `GET /api/v1/wallet/topup/methods`
-* `POST /api/v1/wallet/topup/initiate`
-* `POST /api/v1/wallet/topup/verify`
-* `POST /api/v1/wallet/topup/charge-card`
-* `POST /api/v1/wallet/cards/add`
-* `GET /api/v1/wallet/cards`
-* `DELETE /api/v1/wallet/cards/{id}`
-* `POST /api/v1/wallet/cards/{id}/set-default`
-* `GET /api/v1/wallet/withdrawals/methods`
-* `GET /api/v1/wallet/withdrawals/banks`
-* `POST /api/v1/wallet/withdrawals/accounts`
-* `GET /api/v1/wallet/withdrawals/accounts/list`
-* `DELETE /api/v1/wallet/withdrawals/accounts/{id}`
-* `POST /api/v1/wallet/withdrawals/connect/onboard`
-* `GET /api/v1/wallet/withdrawals/connect/status`
-* `POST /api/v1/wallet/withdrawals/request`
-* `GET /api/v1/wallet/withdrawals/requests`
-
-Creator/admin self-service (same actions, prefix `/admin/wallet/my/`):
-* Mirrors all user wallet endpoints above for the admin's own wallet.
-
-Admin finance endpoints:
-* `POST /api/v1/admin/finance/manual-adjustment`
-* `POST /api/v1/admin/finance/toggle-lock`
-* `POST /api/v1/admin/finance/issue-refund`
-* `POST /api/v1/admin/finance/verify-integrity`
-* `POST /api/v1/admin/finance/withdrawals/process`
-* `POST /api/v1/admin/finance/withdrawals/reject`
-* `GET /api/v1/admin/finance/withdrawals/requests`
-* `GET /api/v1/admin/finance/ledger-audit`
-* `GET /api/v1/admin/finance/platform-wallet`
-
-## 📖 API Documentation
-
-Once the server is running, access:
-* Swagger UI: `http://localhost:8000/api/docs/`
-* OpenAPI schema: `http://localhost:8000/api/schema/`
-
-Flow guides:
-* [Payment flows](docs/payment-flows.md) — top-ups, saved cards, webhooks,
-  and integration test scripts
-* [Withdrawal flows](docs/withdrawal-flows.md) — user/creator cash-out,
-  Paystack bank + Stripe Connect, admin process/reject
-* [Platform tasks](docs/platform-tasks.md)
-
-## 🐳 Deployment scripts
-
-The repository includes deployment scripts:
-* `build.sh` — run migrations and prepare the app
-* `start.sh` — start Gunicorn and Celery workers
-
-## ⚠️ Payment readiness checklist
-
-Before initiating a payment, confirm the following:
-1. `.env` contains valid gateway secrets and webhook secrets.
-2. `PUBLIC_API_BASE_URL` points to your API host.
-3. `PAYMENT_REDIRECT_URL` points to a client callback or verification endpoint.
-4. `SystemFinancialConfig.enabled_topup_gateways` includes the desired gateway.
-5. `CurrencyConfig` exists for the requested currency and includes the gateway in `supported_gateways`.
-6. `SystemFinancialConfig.pass_gateway_fees_to_customer` is set according to whether the customer should pay gateway processing fees.
-7. Webhook URLs are registered in the gateway dashboard and match your deployment host.
-
-## ✅ Summary
-
-The SkiFlux backend is set up to support wallet top-ups, payment verification, webhook-based payment confirmation, and admin financial controls. The payment flow depends on:
-* valid gateway secrets in environment variables
-* enabled gateways in system configuration
-* active currency definitions
-* proper webhook registration
-
-Use the admin finance endpoints to configure which payment gateways are allowed, how fees are handled, and which currencies are active.
+Contributions should include focused tests for behavior changes and pass the
+pytest and Ruff checks above. Please avoid committing `.env` files, service
+account keys, or other credentials.
